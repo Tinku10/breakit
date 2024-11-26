@@ -1,13 +1,10 @@
-use super::{
-    Board, Collidable, GameDimension, GameObject, GamePhysics, MoveCommand, ObjectCoordinates,
-    ObjectVelocity, SurfaceNormal,
-};
+use super::{Collidable, GameDimension, GameObject, GamePhysics, ObjectCoordinates, Vector};
 use crossterm::{
     cursor,
     style::{self, style, StyledContent, Stylize},
-    terminal, QueueableCommand,
+    QueueableCommand,
 };
-use std::any::Any;
+
 use std::cmp::*;
 use std::io::{self, stdout, Write};
 
@@ -20,7 +17,7 @@ pub struct Ball {
     pub xvelocity: f64,
     pub yvelocity: f64,
     dim: GameDimension,
-    normals: [SurfaceNormal; 4],
+    normals: [Vector; 4],
 }
 
 impl Ball {
@@ -34,10 +31,10 @@ impl Ball {
             radius: BALL_RADIUS,
             dim,
             normals: [
-                SurfaceNormal(0, -1),
-                SurfaceNormal(0, 1),
-                SurfaceNormal(-1, 0),
-                SurfaceNormal(1, 0),
+                Vector(0.0, -1.0),
+                Vector(0.0, 1.0),
+                Vector(-1.0, 0.0),
+                Vector(1.0, 0.0),
             ],
         }
     }
@@ -68,12 +65,12 @@ impl Collidable for Ball {
         return false;
     }
 
-    fn get_normal(&self, other: &dyn Collidable) -> &super::SurfaceNormal {
+    fn get_normal(&self, _other: &dyn Collidable) -> &super::Vector {
         todo!("do not require ball's normal yet!")
     }
 
-    fn get_velocity(&self) -> super::ObjectVelocity {
-        ObjectVelocity(self.xvelocity, self.yvelocity)
+    fn get_velocity(&self) -> super::Vector {
+        Vector(self.xvelocity, self.yvelocity)
     }
 }
 
@@ -109,7 +106,7 @@ impl GameObject for Ball {
     }
 
     fn draw_object(&self) -> io::Result<()> {
-        self.fill_object("●".green())
+        self.fill_object("●".white())
     }
 
     fn clear_object(&self) -> io::Result<()> {
@@ -124,31 +121,10 @@ impl GameObject for Ball {
             (self.ypos as f64 + self.yvelocity).clamp(0.0, (self.dim.0 - 2 * self.radius) as f64);
         self.xpos = new_xpos as u16;
         self.ypos = new_ypos as u16;
+        // println!("{} {} {} {}", self.xpos, self.ypos, self.xvelocity, self.yvelocity);
         Ok(())
     }
 }
-
-// impl MoveCommand for Ball {
-//     fn move_left(&mut self) -> io::Result<()> {
-//         self.xvelocity = -1;
-//         self.move_object()
-//     }
-
-//     fn move_right(&mut self) -> io::Result<()> {
-//         self.xvelocity = 1;
-//         self.move_object()
-//     }
-
-//     fn move_up(&mut self) -> io::Result<()> {
-//         self.yvelocity = -1;
-//         self.move_object()
-//     }
-
-//     fn move_down(&mut self) -> io::Result<()> {
-//         self.yvelocity = 1;
-//         self.move_object()
-//     }
-// }
 
 impl GamePhysics for Ball {
     fn update_object(&mut self) -> io::Result<()> {
@@ -159,7 +135,7 @@ impl GamePhysics for Ball {
     fn handle_collision(&mut self, other: &dyn Collidable) -> io::Result<()> {
         if self.has_collision(other) {
             // Retrieve the surface normal from the other object
-            let SurfaceNormal(nx, ny) = other.get_normal(self);
+            let Vector(nx, ny) = other.get_normal(self);
 
             // They are already normal, so not needed
             let normal_magnitude = 1.0; //((nx * nx + ny * ny) as f64).sqrt();
@@ -180,6 +156,7 @@ impl GamePhysics for Ball {
             // Update the ball's velocity
             self.xvelocity = reflected_vx;
             self.yvelocity = reflected_vy;
+            // println!("{} {}", self.xvelocity, self.yvelocity);
         }
         Ok(())
     }

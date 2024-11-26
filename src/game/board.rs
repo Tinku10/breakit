@@ -1,20 +1,15 @@
 use crossterm::{
     cursor,
-    event::{self, poll, read, Event, KeyCode, KeyEvent},
     style::{self, style, Stylize},
-    terminal::{self, WindowSize},
-    ExecutableCommand, QueueableCommand,
+    QueueableCommand,
 };
 
 use super::{
-    Ball, Collidable, GameDimension, GameObject, GamePhysics, MoveCommand, ObjectCoordinates,
-    ObjectVelocity, SurfaceNormal,
+    Collidable, GameDimension, GameObject, GamePhysics, MoveCommand, ObjectCoordinates, Vector,
 };
-use std::any::Any;
+
 use std::cmp::*;
 use std::io::{self, stdout, Write};
-use std::thread::sleep;
-use std::time::Duration;
 
 const MOVE_INCR: u16 = 2;
 
@@ -23,7 +18,7 @@ pub struct Board {
     pub width: u16,
     pub velocity: f64,
     dim: GameDimension,
-    normals: [SurfaceNormal; 1],
+    normals: [Vector; 1],
 }
 
 impl Board {
@@ -36,7 +31,7 @@ impl Board {
             width: BOARD_WIDTH,
             velocity: 0.0,
             dim,
-            normals: [SurfaceNormal(0, -1)],
+            normals: [Vector(0.0, -1.0)],
         }
     }
 }
@@ -50,8 +45,8 @@ impl Collidable for Board {
         let ObjectCoordinates(bx1, by1, bx2, by2) = other.get_coordinates();
 
         let x1 = max(ax1, bx1);
-        let x2 = max(ax2, bx2);
-        let y1 = min(ay1, by1);
+        let x2 = min(ax2, bx2);
+        let y1 = max(ay1, by1);
         let y2 = min(ay2, by2);
 
         if x1 <= x2 && y1 <= y2 {
@@ -59,9 +54,9 @@ impl Collidable for Board {
         }
         return false;
     }
-    fn get_normal(&self, other: &dyn Collidable) -> &super::SurfaceNormal {
-        let ObjectCoordinates(ox1, oy1, ox2, oy2) = other.get_coordinates();
-        let ObjectCoordinates(sx1, sy1, sx2, sy2) = self.get_coordinates();
+    fn get_normal(&self, other: &dyn Collidable) -> &super::Vector {
+        let ObjectCoordinates(ox1, oy1, _ox2, _oy2) = other.get_coordinates();
+        let ObjectCoordinates(sx1, sy1, _sx2, _sy2) = self.get_coordinates();
 
         if oy1 <= sy1 {
             // Collision on top
@@ -71,8 +66,8 @@ impl Collidable for Board {
             todo!("Cannot hit other surfaces yet!")
         }
     }
-    fn get_velocity(&self) -> super::ObjectVelocity {
-        ObjectVelocity(self.velocity, 0.0)
+    fn get_velocity(&self) -> super::Vector {
+        Vector(self.velocity, 0.0)
     }
 }
 
@@ -138,7 +133,7 @@ impl GamePhysics for Board {
         Ok(())
     }
 
-    fn handle_collision(&mut self, other: &dyn Collidable) -> io::Result<()> {
+    fn handle_collision(&mut self, _other: &dyn Collidable) -> io::Result<()> {
         Ok(())
     }
 }

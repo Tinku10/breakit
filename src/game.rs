@@ -1,36 +1,35 @@
 mod ball;
 mod board;
 mod wall;
+mod brick;
 
 use ball::Ball;
 use board::Board;
+use wall::Wall;
+use brick::Brick;
 use crossterm::{
     cursor,
-    event::{self, poll, read, Event, KeyCode, KeyEvent},
-    style::{self, Stylize},
+    event::{poll, read, Event, KeyCode},
+    style::{self},
     terminal::{self, WindowSize},
     QueueableCommand,
 };
 use std::io::{self, stdout, Write};
-use std::thread::sleep;
+
 use std::time::Duration;
-use wall::Wall;
 
 #[derive(Clone, Copy)]
 pub struct GameDimension(u16, u16);
 
 pub struct ObjectCoordinates(u16, u16, u16, u16);
 
-pub struct SurfaceNormal(i32, i32);
-
-pub struct ObjectVelocity(f64, f64);
+pub struct Vector(f64, f64);
 
 pub struct Game {
-    rows: u16,
-    columns: u16,
     ball: Ball,
     board: Board,
     walls: [Wall; 3],
+    bricks: Vec<Brick>,
     dim: GameDimension,
 }
 
@@ -49,8 +48,8 @@ pub trait MoveCommand {
 }
 
 pub trait Collidable {
-    fn get_velocity(&self) -> ObjectVelocity;
-    fn get_normal(&self, other: &dyn Collidable) -> &SurfaceNormal;
+    fn get_velocity(&self) -> Vector;
+    fn get_normal(&self, other: &dyn Collidable) -> &Vector;
     fn get_coordinates(&self) -> ObjectCoordinates;
     fn has_collision(&self, other: &dyn Collidable) -> bool;
 }
@@ -66,8 +65,6 @@ impl Game {
         let dim = GameDimension(rows, columns);
 
         Game {
-            rows,
-            columns,
             dim,
             ball: Ball::new(dim.clone()),
             board: Board::new(dim.clone()),
@@ -75,11 +72,13 @@ impl Game {
                 Wall::new(dim.clone(), wall::Direction::Left),
                 Wall::new(dim.clone(), wall::Direction::Right),
                 Wall::new(dim.clone(), wall::Direction::Top),
+                // Wall::new(dim.clone(), wall::Direction::Bottom),
             ],
+            bricks: (0..dim.1).filter(|x| x % 4 != 0).map(|x| Brick::new(x, 0)).collect(),
         }
     }
 
-    pub fn run(&mut self) -> io::Result<()> {
+    fn setup(&self) -> io::Result<()> {
         let mut stdout = stdout();
 
         stdout
@@ -87,13 +86,21 @@ impl Game {
             .queue(cursor::Hide)?;
 
         terminal::enable_raw_mode();
+        Ok(())
+    }
+
+    pub fn run(&mut self) -> io::Result<()> {
+        self.setup()?;
 
         loop {
             self.ball.draw_object();
-            self.board.draw_object();
             for w in &self.walls {
                 w.draw_object();
             }
+            for b in &self.bricks {
+                b.draw_object();
+            }
+            self.board.draw_object();
             if poll(Duration::from_millis(40))? {
                 match read()? {
                     Event::Key(event) if event.code == KeyCode::Left => self.board.move_left(),
@@ -105,15 +112,21 @@ impl Game {
             for w in &self.walls {
                 self.ball.handle_collision(w);
             }
+            for b in &mut self.bricks {
+                b.handle_collision(&self.ball);
+                self.ball.handle_collision(b);
+            }
             self.ball.handle_collision(&self.board);
             self.ball.update_object();
             // sleep(Duration::from_millis(5));
         }
 
+        self.clear()?;
+
         Ok(())
     }
 
-    pub fn clear(&mut self) -> io::Result<()> {
+    fn clear(&mut self) -> io::Result<()> {
         let mut stdout = stdout();
 
         stdout
