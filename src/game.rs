@@ -2,11 +2,13 @@ mod ball;
 mod board;
 mod wall;
 mod brick;
+mod text;
 
 use ball::Ball;
 use board::Board;
 use wall::Wall;
 use brick::Brick;
+use text::{Text, HorizontalAlign, VerticalAlign};
 use crossterm::{
     cursor,
     event::{poll, read, Event, KeyCode},
@@ -74,7 +76,7 @@ impl Game {
                 Wall::new(dim.clone(), wall::Direction::Top),
                 // Wall::new(dim.clone(), wall::Direction::Bottom),
             ],
-            bricks: (0..dim.1).filter(|x| x % 4 != 0).map(|x| Brick::new(x, 0)).collect(),
+            bricks: (0..dim.1).filter(|x| x % 4 != 0).map(|x| Brick::new(x, 2)).collect(),
         }
     }
 
@@ -92,7 +94,23 @@ impl Game {
     pub fn run(&mut self) -> io::Result<()> {
         self.setup()?;
 
+        let texts = [
+            Text::new("Top Left", text::Position(HorizontalAlign::Left, VerticalAlign::Top), self.dim.clone()),
+            Text::new("Top Centre", text::Position(HorizontalAlign::Centre, VerticalAlign::Top), self.dim.clone()),
+            Text::new("Top Right", text::Position(HorizontalAlign::Right, VerticalAlign::Top), self.dim.clone()),
+            Text::new("Centre Left", text::Position(HorizontalAlign::Left, VerticalAlign::Centre), self.dim.clone()),
+            Text::new("Centre Centre", text::Position(HorizontalAlign::Centre, VerticalAlign::Centre), self.dim.clone()),
+            Text::new("Centre Right", text::Position(HorizontalAlign::Right, VerticalAlign::Centre), self.dim.clone()),
+            Text::new("Bottom Left", text::Position(HorizontalAlign::Left, VerticalAlign::Bottom), self.dim.clone()),
+            Text::new("Bottom Centre", text::Position(HorizontalAlign::Centre, VerticalAlign::Bottom), self.dim.clone()),
+            Text::new("Bottom Right", text::Position(HorizontalAlign::Right, VerticalAlign::Bottom), self.dim.clone())
+        ];
+
+
         loop {
+            for t in &texts {
+                t.draw_object();
+            }
             self.ball.draw_object();
             for w in &self.walls {
                 w.draw_object();
@@ -109,12 +127,12 @@ impl Game {
                     _ => Ok(()),
                 };
             }
-            for w in &self.walls {
-                self.ball.handle_collision(w);
-            }
             for b in &mut self.bricks {
                 b.handle_collision(&self.ball);
                 self.ball.handle_collision(b);
+            }
+            for w in &self.walls {
+                self.ball.handle_collision(w);
             }
             self.ball.handle_collision(&self.board);
             self.ball.update_object();
